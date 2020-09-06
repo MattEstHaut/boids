@@ -1,70 +1,213 @@
-var BOIDS = BOIDS || {};
+const CANVAS = document.getElementById("main-canvas");
+const CTX = CANVAS.getContext("2d");
+const WIDTH = CANVAS.width; const HEIGHT = CANVAS.height;
+const SCALE = 4;
 
-var rand = (max) => {
-	return Math.random()*(max+1);
+var ALIGNEMENT_PERCEPTION = 40;
+var COHESION_PERCEPTION = 60;
+var SEPARATION_PERCEPTION = 20;
+var ALIGNEMENT_SCALE = 1;
+var COHESION_SCALE = 0.5;
+var SEPARATION_SCALE = 1.5;
+var MAX_SPEED = 1;
+var MAX_F = 0.01;
+
+const FLOCK = [];
+FLOCK.show = () => {
+	clear();
+	for (let boid of FLOCK) {
+		boid.edges();
+		boid.flock(FLOCK);
+	}
+	for (let boid of FLOCK) {
+		boid.update();
+		boid.show();
+	}
+};
+
+const clear = () => {
+	CTX.fillStyle = "#fba6ff";
+	CTX.fillRect(0, 0, WIDTH, HEIGHT);
 }
 
-var dist = (boid_1, boid_2) => {
-	return Math.sqrt((boid_1.x-boid_2.x)**2+(boid_1.y-boid_2.y)**2);
-}
+class Vector {
+	constructor(x=0, y=0) {
+		this.x = x;
+		this.y = y;
+	}
 
-var adif = (boid_1, boid_2) => {
-	var gdif = dist(boid_1, boid_2);
-	if (gdif > 0) {
-		var xdif = boid_2.x-boid_1.x; var ydif = boid_2.y-boid_1.y;
-		xdif /= gdif;
-		var a = (ydif > 0) ? Math.acos(xdif) : Math.PI*2-Math.acos(xdif);
-		return boid_1.a - a;
-	} else {
-		return 0;
+	add(vector) {
+		this.x += vector.x;
+		this.y += vector.y;
+		return this;
+	}
+
+	sub(vector) {
+		this.x -= vector.x;
+		this.y -= vector.y;
+		return this;
+	}
+
+	div(value) {
+		this.x /= value;
+		this.y /= value;
+		return this;
+	}
+
+	mul(value) {
+		this.x *= value;
+		this.y *= value;
+		return this;
+	}
+
+	random() {
+		let a = Math.random()*(2*Math.PI);
+		this.x = Math.cos(a);
+		this.y = Math.sin(a);
+		return this;
+	}
+
+	normalize() {
+		let d = distance(this.x, this.y, 0, 0);
+		if (d > 0) {
+			this.x /= d; this.y /= d;
+		}
+		return this;
+	}
+
+	limit(max) {
+		let d = distance(this.x, this.y, 0, 0);
+		if (d > max) {
+			this.div(d/max);
+		}
+		return this;
 	}
 }
 
-BOIDS.boid = (x, y, a) => {
-	return { x: x, y: y, a: a};
+const distance = (x1, y1, x2, y2) => {
+	return Math.sqrt((x1-x2)**2+(y1-y2)**2);
 }
 
-BOIDS.swarm = (number = 0) => {
-	this.boids = [];
-	this.rules = {width: 500, height: 500, speed:150};
+class Boid {
+	constructor() {
+		this.position = new Vector(WIDTH*Math.random(), HEIGHT*Math.random());
+		this.velocity = new Vector().random();
+		this.acceleration = new Vector();
+	}
 
-	this.add = (number) => {
-		var w = this.rules.width; var h = this.rules.height;
-		for (var b = 0; b < number; b++) {
-			this.boids.push(BOIDS.boid(w/2, h/2, rand(2*Math.PI)));
+	update() {
+		this.position.add(this.velocity);
+		this.velocity.add(this.acceleration);
+		this.velocity.limit(MAX_SPEED);
+	}
+
+	edges() {
+		if (this.position.x > WIDTH) {
+			this.position.x = 0;
+		} else if (this.position.x < 0) {
+			this.position.x = WIDTH;
 		}
-	};
-
-	this.update = (dt) => {
-		var new_boids = [];
-		for (var b = 0; b < this.boids.length; b++) {
-			new_boids.push(this.boids[b]);
-			var action = false;
-
-			if (this.boids[b].x <= 20 && this.boids[b].x+this.rules.speed*Math.cos(this.boids[b].a)*dt < this.boids[b].x) {
-				new_boids[b].a = Math.PI-this.boids[b].a;
-				action = true;
-			} else if (this.boids[b].x >= this.rules.width-20 && this.boids[b].x+this.rules.speed*Math.cos(this.boids[b].a)*dt > this.boids[b].x) {
-				new_boids[b].a = Math.PI-this.boids[b].a;
-				action = true;
-			}
-			if (this.boids[b].y <= 20 && this.boids[b].y+this.rules.speed*Math.sin(this.boids[b].a)*dt < this.boids[b].y) {
-				new_boids[b].a = -this.boids[b].a;
-				action = true;
-			} else if (this.boids[b].y >= this.rules.height-20 && this.boids[b].y+this.rules.speed*Math.sin(this.boids[b].a)*dt > this.boids[b].y) {
-				new_boids[b].a = -this.boids[b].a;
-				action = true;
-			}
-
-			new_boids[b].x = this.boids[b].x+this.rules.speed*Math.cos(this.boids[b].a)*dt;
-			new_boids[b].y = this.boids[b].y+this.rules.speed*Math.sin(this.boids[b].a)*dt;
-		}
-
-		for (var b = 0; b < this.boids.length; b++) {
-			this.boids[b] = new_boids[b];
+		if (this.position.y > HEIGHT) {
+			this.position.y = 0;
+		} else if (this.position.y < 0) {
+			this.position.y = HEIGHT;
 		}
 	}
 
-	this.add(number);
-	return this;
+	align(boids) {
+		let steering = new Vector();
+		let total = 0;
+		for (let other of boids) {
+			let d = distance(this.position.x, this.position.y, other.position.x, other.position.y);
+			if (d <= ALIGNEMENT_PERCEPTION && d != 0) {
+				steering.add(other.velocity);
+				total++;
+			}
+		}
+		if (total > 0) {
+			steering.div(total);
+			steering.normalize().mul(MAX_SPEED);
+			steering.sub(this.velocity);
+			steering.limit(MAX_F);
+		}
+		return steering;
+	}
+
+	cohesion(boids) {
+		let steering = new Vector();
+		let total = 0;
+		for (let other of boids) {
+			let d = distance(this.position.x, this.position.y, other.position.x, other.position.y);
+			if (d <= COHESION_PERCEPTION && d != 0) {
+				steering.add(other.position);
+				total++;
+			}
+		}
+		if (total > 0) {
+			steering.div(total);
+			steering.sub(this.position);
+			steering.normalize().mul(MAX_SPEED);
+			steering.sub(this.velocity);
+			steering.limit(MAX_F);
+		}
+		return steering;
+	}
+
+	separation(boids) {
+		let steering = new Vector();
+		let total = 0;
+		for (let other of boids) {
+			let d = distance(this.position.x, this.position.y, other.position.x, other.position.y);
+			if (d <= SEPARATION_PERCEPTION && d != 0) {
+				let difference = new Vector(
+					this.position.x-other.position.x, 
+					this.position.y-other.position.y);
+				difference.div(d);
+				steering.add(difference);
+				total++;
+			}
+		}
+		if (total > 0) {
+			steering.div(total);
+			steering.normalize().mul(MAX_SPEED);
+			steering.sub(this.velocity);
+			steering.limit(MAX_F);
+		}
+		return steering;
+	}
+
+	flock(boids) {
+		let alignement = this.align(boids).mul(ALIGNEMENT_SCALE);
+		let cohesion = this.cohesion(boids).mul(COHESION_SCALE);
+		let separation = this.separation(boids).mul(SEPARATION_SCALE);
+		this.acceleration.mul(0);
+		this.acceleration.add(alignement);
+		this.acceleration.add(cohesion);
+		this.acceleration.add(separation);
+	}
+
+	show() {
+		let a = Math.acos(this.velocity.x);
+		a = (this.velocity.y < 0) ? -a : a;
+
+		CTX.fillStyle = "white";
+		CTX.beginPath();
+		CTX.moveTo(this.position.x+Math.cos(a)*SCALE*3, this.position.y+Math.sin(a)*SCALE*3);
+		CTX.lineTo(this.position.x+Math.cos(a-Math.PI/3)*SCALE, this.position.y+Math.sin(a-Math.PI/3)*SCALE);
+		CTX.lineTo(this.position.x+Math.cos(a+Math.PI/3)*SCALE, this.position.y+Math.sin(a+Math.PI/3)*SCALE);
+		CTX.lineTo(this.position.x+Math.cos(a)*SCALE*3, this.position.y+Math.sin(a)*SCALE*3);
+		CTX.fill();
+	}
 }
+
+const setup = (number=50) => {
+	for (let b=0; b<number; b++) {
+		FLOCK.push(new Boid());
+	}
+}
+
+setup(200);
+
+var interval = setInterval(() => {
+	FLOCK.show();
+}, 10);

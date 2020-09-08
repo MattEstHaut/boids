@@ -362,11 +362,11 @@ BOIDS.legalize_cam = () => {
 
 BOIDS.run = () => {
 	var interval = setInterval(() => {
+		BOIDS.clear();
 		if (!BOIDS.options.pause) {
-			BOIDS.clear();
 			BOIDS.flock.update();
-			BOIDS.obstacles.show();
-			BOIDS.flock.show();
 		}
+		BOIDS.obstacles.show();
+		BOIDS.flock.show();
 	}, 10);
 }

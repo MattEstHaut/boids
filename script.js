@@ -83,7 +83,8 @@ canvas.addEventListener("mousedown", (evt) => {
 	} else if (evt.button == 2) {
 		right_down = true;
 		left_down = false;
-		
+		let position = BOIDS.cam_to_real(evt.offsetX, evt.offsetY);
+		BOIDS.obstacles.push(new BOIDS.Obstacle(position.x, position.y, 3));
 	}
 });
 
